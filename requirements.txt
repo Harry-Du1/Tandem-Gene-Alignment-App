@@ -1,5 +1,8 @@
-streamlit>=1.33
+streamlit>=1.32
+pandas
 matplotlib
+seaborn
 numpy
 scipy
-pandas
+biopython
+altair
