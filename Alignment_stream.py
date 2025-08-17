@@ -6,6 +6,8 @@ from matplotlib.patches import Polygon
 import random
 import os
 import argparse
+import shutil
+from pathlib import Path
 
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
@@ -204,16 +206,40 @@ class AdhSeq:
 #To be continued...
 
 #######################################################Run Program####################################################
+
+def _find_lastz():
+    # 1) env var
+    p = os.environ.get("LASTZ_PATH")
+    if p and Path(p).exists():
+        return p
+    # 2) system PATH
+    p = shutil.which("lastz")
+    if p:
+        return p
+    # 3) bundled binary in repo
+    here = Path(__file__).resolve().parent
+    bundled = here / "bin" / "lastz"
+    if bundled.exists():
+        return str(bundled)
+    return None
+
 def run_lastz(query_file, ref_file, output_file="out.txt"):
+    lastz_path = _find_lastz()
+    if not lastz_path:
+        raise RuntimeError(
+            "LASTZ not found. Set LASTZ_PATH env var, install it on PATH, "
+            "or include a Linux binary at Alignment_stream/bin/lastz."
+        )
     with open(output_file, "w") as out:
         subprocess.run([
-            "/usr/local/bin/lastz",
-            f"{ref_file}[multiple]",  # allow multiple hits per query
+            lastz_path,
+            f"{ref_file}[multiple]",
             f"{query_file}",
             "--format=general:name1,start1,end1,name2,start2,end2,identity",
             "--strand=both",
             "--maxwordcount=2"
         ], stdout=out, check=True)
+
 
 
 def parse_lastz(lastz_file, chunk_size):
