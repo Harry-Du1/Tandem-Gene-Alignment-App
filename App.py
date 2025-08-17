@@ -1,6 +1,5 @@
 import io
 from pathlib import Path
-
 import streamlit as st
 import Alignment_stream as AS
 from Alignment_stream import AdhSeq, getGraph
