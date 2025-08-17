@@ -208,37 +208,52 @@ class AdhSeq:
 #######################################################Run Program####################################################
 
 def _find_lastz():
-    # 1) env var
+    # 1) Explicit env var
     p = os.environ.get("LASTZ_PATH")
     if p and Path(p).exists():
         return p
-    # 2) system PATH
+    # 2) apt-installed or system PATH
     p = shutil.which("lastz")
     if p:
         return p
-    # 3) bundled binary in repo
-    here = Path(__file__).resolve().parent
-    bundled = here / "bin" / "lastz"
-    if bundled.exists():
-        return str(bundled)
     return None
 
 def run_lastz(query_file, ref_file, output_file="out.txt"):
     lastz_path = _find_lastz()
     if not lastz_path:
         raise RuntimeError(
-            "LASTZ not found. Set LASTZ_PATH env var, install it on PATH, "
-            "or include a Linux binary at Alignment_stream/bin/lastz."
+            "LASTZ not found. On Streamlit Cloud, add a 'packages.txt' with a line 'lastz', "
+            "or set LASTZ_PATH to the binary."
         )
-    with open(output_file, "w") as out:
-        subprocess.run([
-            lastz_path,
-            f"{ref_file}[multiple]",
-            f"{query_file}",
-            "--format=general:name1,start1,end1,name2,start2,end2,identity",
-            "--strand=both",
-            "--maxwordcount=2"
-        ], stdout=out, check=True)
+
+    if not os.access(lastz_path, os.X_OK):
+        raise RuntimeError(f"LASTZ is not executable: {lastz_path}")
+
+    try:
+        with open(output_file, "w") as out:
+            subprocess.run(
+                [
+                    lastz_path,
+                    f"{ref_file}[multiple]",
+                    f"{query_file}",
+                    "--format=general:name1,start1,end1,name2,start2,end2,identity",
+                    "--strand=both",
+                    "--maxwordcount=2",
+                ],
+                stdout=out,
+                stderr=subprocess.PIPE,
+                check=True,
+                text=True,
+            )
+    except FileNotFoundError as e:
+        raise RuntimeError(f"Failed to execute LASTZ at {lastz_path}: {e}") from e
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(
+            "LASTZ failed.\n"
+            f"Command: {e.cmd}\n"
+            f"Exit code: {e.returncode}\n"
+            f"Stderr:\n{e.stderr}"
+        ) from e
 
 
 
